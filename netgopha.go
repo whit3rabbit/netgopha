@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"syscall"
 
 	"github.com/fatih/color"
 )
@@ -76,6 +77,7 @@ func ExecProgram(conn net.Conn, program string) {
 
 		// Unix style systems
 		cmd := exec.Command(program)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		cmd.Stdout = conn // STDOUT is network connection
 		cmd.Stdin = conn
 		cmd.Stderr = conn
@@ -179,7 +181,7 @@ func streamCopy(src io.Reader, dst io.Writer) <-chan int {
 }
 
 // TLSClient begins the Client with TLS encryption
-func TLSClient(serverCert string, remoteAddr string, nodata bool, program string) {
+func TLSClient(protocol string, serverCert string, remoteAddr string, nodata bool, program string) {
 
 	// Begin TLS parse & configuration
 	roots := x509.NewCertPool()
@@ -190,7 +192,7 @@ func TLSClient(serverCert string, remoteAddr string, nodata bool, program string
 	config := &tls.Config{RootCAs: roots, InsecureSkipVerify: true}
 
 	// Start TLS connection
-	conn, err := tls.Dial("tcp", remoteAddr, config)
+	conn, err := tls.Dial(protocol, remoteAddr, config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -203,13 +205,13 @@ func TLSClient(serverCert string, remoteAddr string, nodata bool, program string
 }
 
 // Client relies on Transferstreams to write input and output
-func Client(RemoteServer string, RemotePort string, encrypted bool, nodata bool, program string) {
+func Client(protocol string, RemoteServer string, RemotePort string, encrypted bool, nodata bool, program string) {
 
 	remoteAddr := RemoteServer + ":" + RemotePort
 
 	// If not encrypted, no TLS
 	if !encrypted {
-		conn, err := net.Dial("tcp", remoteAddr)
+		conn, err := net.Dial(protocol, remoteAddr)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -225,10 +227,10 @@ func Client(RemoteServer string, RemotePort string, encrypted bool, nodata bool,
 		NewServerCert := CheckCerts("cert.pem")
 		if NewServerCert != "" {
 			color.Blue("[+] Starting encrypted client connection with cert.pem")
-			TLSClient(NewServerCert, remoteAddr, nodata, program)
+			TLSClient(protocol, NewServerCert, remoteAddr, nodata, program)
 		} else {
 			color.Blue("[+] Starting encrypted client connection with hardcoded certs")
-			TLSClient(serverCert, remoteAddr, nodata, program)
+			TLSClient(protocol, serverCert, remoteAddr, nodata, program)
 		}
 	}
 }
@@ -255,7 +257,7 @@ func CheckCerts(cert string) string {
 }
 
 // StartTLSServer begins the TLS server
-func StartTLSServer(serverKey string, serverCert string, listenAddr string, program string) {
+func StartTLSServer(protocol string, serverKey string, serverCert string, listenAddr string, program string) {
 
 	// TLS stuff (serverCert & serverKey)
 	cer, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
@@ -265,7 +267,7 @@ func StartTLSServer(serverKey string, serverCert string, listenAddr string, prog
 	config := &tls.Config{Certificates: []tls.Certificate{cer}}
 
 	// Start the encrypted listener
-	ln, err := tls.Listen("tcp", listenAddr, config)
+	ln, err := tls.Listen(protocol, listenAddr, config)
 	if err != nil {
 		color.Red("[!] Encrypted listener unable to start: %s", err)
 		return
@@ -285,7 +287,7 @@ func StartTLSServer(serverKey string, serverCert string, listenAddr string, prog
 }
 
 // ListenServer starts a TCP listener
-func ListenServer(server string, port string, encrypted bool, program string) {
+func ListenServer(protocol string, server string, port string, encrypted bool, program string) {
 
 	// The listen address:
 	// e.g. 127.0.0.1:8080
@@ -294,7 +296,7 @@ func ListenServer(server string, port string, encrypted bool, program string) {
 
 	// If unencrypted, then start without TLS
 	if !encrypted {
-		ln, err := net.Listen("tcp", listenAddr)
+		ln, err := net.Listen(protocol, listenAddr)
 		if err != nil {
 			color.Red("[!] Unecrypted listener unable to start: %s", err)
 			return
@@ -321,13 +323,24 @@ func ListenServer(server string, port string, encrypted bool, program string) {
 			// If return value is not empty then use that for TLS server
 			if NewServerKey != "" && NewServerCert != "" {
 				color.Blue("[+] Starting encrypted listener with cert files on %s", listenAddr)
-				StartTLSServer(NewServerKey, NewServerCert, listenAddr, program)
+				StartTLSServer(protocol, NewServerKey, NewServerCert, listenAddr, program)
 			} else {
 				// Use the hardcoded certs
 				color.Blue("[+] Starting encrypted listener with hardcoded certs on %s", listenAddr)
-				StartTLSServer(serverKey, serverCert, listenAddr, program)
+				StartTLSServer(protocol, serverKey, serverCert, listenAddr, program)
 			}
 		}
+	}
+}
+
+// CheckProtocol determines if IPv4, IPv6 selected
+func CheckProtocol(ver4 bool, ver6 bool) string {
+	if ver4 {
+		return "tcp"
+	} else if ver6 {
+		return "tcp6"
+	} else {
+		return "tcp"
 	}
 }
 
@@ -376,12 +389,16 @@ func main() {
 	var listen bool
 	var noresolve bool
 	var nodata bool
+	var ver4 bool
+	var ver6 bool
 
 	flag.BoolVar(&version, "v", false, "Show current version")
 	flag.BoolVar(&encrypted, "x", false, "Use TLS encryption.  Either hardcoded or use cert files")
 	flag.BoolVar(&listen, "l", false, "Listen mode")
 	flag.BoolVar(&noresolve, "n", false, "Do not resolve domain")
 	flag.BoolVar(&nodata, "z", false, "Do not send any data")
+	flag.BoolVar(&ver4, "4", false, "Force IPv4")
+	flag.BoolVar(&ver6, "6", false, "Force IPv6")
 
 	flag.Parse()
 
@@ -399,6 +416,9 @@ func main() {
 		color.Blue(NetgophaVersion)
 		os.Exit(0)
 	}
+
+	// Define protocol (default is tcp)
+	proto := CheckProtocol(ver4, ver6)
 
 	// If not listen mode, then client mode
 	if !listen {
@@ -432,12 +452,12 @@ func main() {
 			if resolvedIP != nil {
 				color.Blue("[+] Resolved IP: %s", resolvedIP[0])
 				// Start client mode with resolved IP
-				Client(string(resolvedIP[0]), destinationPort, encrypted, nodata, exec)
+				Client(proto, string(resolvedIP[0]), destinationPort, encrypted, nodata, exec)
 			}
 		}
 
 		// Start client mode
-		Client(host, destinationPort, encrypted, nodata, exec)
+		Client(proto, host, destinationPort, encrypted, nodata, exec)
 	}
 
 	// Check for listen mode
@@ -451,9 +471,9 @@ func main() {
 
 		// Start listener
 		if listenHost != "" {
-			ListenServer(listenHost, localPort, encrypted, exec) // If -s, then set IP of listener
+			ListenServer(proto, listenHost, localPort, encrypted, exec) // If -s, then set IP of listener
 		} else {
-			ListenServer("", localPort, encrypted, exec)
+			ListenServer(proto, "", localPort, encrypted, exec)
 		}
 	}
 

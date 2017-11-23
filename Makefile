@@ -27,9 +27,6 @@ build:
 	go build ${LDFLAGS} -o ${BINARY}
 	upx -f --brute -o ${BINARY}.upx ${BINARY}
 
-build_windows:
-        go build ${LDFLAGS_WIN} -o ${BINARY}
-
 build_all:
 	$(foreach GOOS, $(PLATFORMS),\
 	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build -v -o $(BINARY)-$(GOOS)-$(GOARCH))))
