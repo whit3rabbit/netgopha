@@ -21,3 +21,6 @@ netgopha
 *.upx
 *.key
 *.pem
+
+# Output files
+output/*

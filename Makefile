@@ -11,9 +11,10 @@ K := $(foreach exec,$(EXECUTABLES),\
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 BINARY=netgopha
-VERSION=0.1
+VERSION=0.1.1
 PLATFORMS=darwin linux windows
 ARCHITECTURES=386 amd64
+OUTPUT=output
 
 # Setup linker flags option for build that interoperate with variable names in src code
 LDFLAGS=-ldflags="-s -w -X main.Version=${VERSION}"
@@ -24,13 +25,14 @@ default: build
 all: clean build_all install
 
 build:
-	go build ${LDFLAGS} -o ${BINARY}
+	go build ${LDFLAGS} -o $(OUTPUT)/${BINARY}
 	# Compress
 	#upx -f --brute -o ${BINARY}.upx ${BINARY}
 
 build_all:
 	$(foreach GOOS, $(PLATFORMS),\
-	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build -v -o $(BINARY)-$(GOOS)-$(GOARCH))))
+	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build -v -o $(OUTPUT)/$(BINARY)-$(GOOS)-$(GOARCH))))
+        GOOS=windows GOARCH=386 go build ${LDFLAGS} -o $(OUTPUT)/$(BINARY)-windows.exe
 
 build_win:
 	GOOS=windows GOARCH=386 go build ${LDFLAGS} -o $(BINARY)-windows.exe
@@ -40,6 +42,6 @@ install:
 
 # Remove only what we've created
 clean:
-	find ${ROOT_DIR} -name '${BINARY}[-?][a-zA-Z0-9]*[-?][a-zA-Z0-9]*' -delete
+	find ${ROOT_DIR} -name $(OUTPUT)/'${BINARY}[-?][a-zA-Z0-9]*[-?][a-zA-Z0-9]*' -delete
 
 .PHONY: check clean install build_all all
