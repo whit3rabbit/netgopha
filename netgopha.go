@@ -11,10 +11,10 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"syscall"
 
+	"github.com/whit3rabbit/netgopha/execute"
 	"github.com/fatih/color"
 )
 
@@ -64,44 +64,33 @@ FdbP1FZBpEK/FoH79kE2CWbm63UdzTDaRWM=
 // it wants to execute on listener.  Listener waits for
 func ExecProgram(conn net.Conn, program string) {
 
-	// Windows (not yet working)
-	if runtime.GOOS == "windows" {
+	// Unix style systems
+	cmd := exec.Command(program)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Stdout = conn // STDOUT is network connection
+	cmd.Stdin = conn
+	cmd.Stderr = conn
 
-		// Windows command execute
-		cmd := exec.Command(program)
-		//cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		out, _ := cmd.Output()
-		conn.Write([]byte(out))
+	color.Blue("Executing program %s", program)
+	err := cmd.Run()
+	if err != nil {
+		color.Red("[!] Error running program %s = %v", program, err)
+		color.Red("[!] Exiting")
+		os.Exit(1)
+	}
 
-	} else {
-
-		// Unix style systems
-		cmd := exec.Command(program)
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		cmd.Stdout = conn // STDOUT is network connection
-		cmd.Stdin = conn
-		cmd.Stderr = conn
-
-		color.Blue("Executing program %s", program)
-		err := cmd.Run()
-		if err != nil {
-			color.Red("[!] Error running program %s = %v", program, err)
-			color.Red("[!] Exiting")
-			os.Exit(1)
-		}
-		color.Blue("Starting connection")
-		chanToStdout := streamCopy(conn, cmd.Stdout)
-		chanToRemote := streamCopy(cmd.Stdin, conn)
-		select {
-		case <-chanToStdout:
-			color.Red("[!] Remote connection is closed")
-			conn.Close()
-			os.Exit(1)
-		case <-chanToRemote:
-			color.Red("[!] Local program is terminated")
-			conn.Close()
-			os.Exit(1)
-		}
+	color.Blue("Starting connection")
+	chanToStdout := streamCopy(conn, cmd.Stdout)
+	chanToRemote := streamCopy(cmd.Stdin, conn)
+	select {
+	case <-chanToStdout:
+		color.Red("[!] Remote connection is closed")
+		conn.Close()
+		os.Exit(1)
+	case <-chanToRemote:
+		color.Red("[!] Local program is terminated")
+		conn.Close()
+		os.Exit(1)
 	}
 }
 
