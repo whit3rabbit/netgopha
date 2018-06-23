@@ -1,12 +1,13 @@
 package execute
 
 import (
-	"exec"
 	"net"
 	"os"
+	"os/exec"
 	"syscall"
 
 	"github.com/fatih/color"
+	"github.com/whit3rabbit/netgopha/stream"
 )
 
 // ExecProgram for TCP Listener...client sends program
@@ -29,8 +30,10 @@ func ExecProgram(conn net.Conn, program string) {
 	}
 
 	color.Blue("Starting connection")
-	chanToStdout := streamCopy(conn, cmd.Stdout)
-	chanToRemote := streamCopy(cmd.Stdin, conn)
+
+	chanToStdout := stream.StreamCopy(conn, cmd.Stdout)
+	chanToRemote := stream.StreamCopy(cmd.Stdin, conn)
+
 	select {
 	case <-chanToStdout:
 		color.Red("[!] Remote connection is closed")

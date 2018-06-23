@@ -5,17 +5,15 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"strconv"
-	"syscall"
 
-	"github.com/whit3rabbit/netgopha/execute"
 	"github.com/fatih/color"
+	"github.com/whit3rabbit/netgopha/execute"
+	"github.com/whit3rabbit/netgopha/stream"
 )
 
 // NetgophaVersion is Current version
@@ -60,49 +58,15 @@ FdbP1FZBpEK/FoH79kE2CWbm63UdzTDaRWM=
 -----END CERTIFICATE-----
 `
 
-// ExecProgram for TCP Listener...client sends program
-// it wants to execute on listener.  Listener waits for
-func ExecProgram(conn net.Conn, program string) {
-
-	// Unix style systems
-	cmd := exec.Command(program)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Stdout = conn // STDOUT is network connection
-	cmd.Stdin = conn
-	cmd.Stderr = conn
-
-	color.Blue("Executing program %s", program)
-	err := cmd.Run()
-	if err != nil {
-		color.Red("[!] Error running program %s = %v", program, err)
-		color.Red("[!] Exiting")
-		os.Exit(1)
-	}
-
-	color.Blue("Starting connection")
-	chanToStdout := streamCopy(conn, cmd.Stdout)
-	chanToRemote := streamCopy(cmd.Stdin, conn)
-	select {
-	case <-chanToStdout:
-		color.Red("[!] Remote connection is closed")
-		conn.Close()
-		os.Exit(1)
-	case <-chanToRemote:
-		color.Red("[!] Local program is terminated")
-		conn.Close()
-		os.Exit(1)
-	}
-}
-
 // TCPConnHandle = TCP -> Stdout and Stdin -> TCP
 // https://github.com/vfedoroff/go-netcat/blob/master/main.go
 func TCPConnHandle(con net.Conn, nodata bool) {
 
 	if !nodata {
 		// Remote -> Client
-		chanToStdout := streamCopy(con, os.Stdout)
+		chanToStdout := stream.StreamCopy(con, os.Stdout)
 		// Client -> Remote
-		chanToRemote := streamCopy(os.Stdin, con)
+		chanToRemote := stream.StreamCopy(os.Stdin, con)
 		select {
 		case <-chanToStdout:
 			color.Red("[!] Remote connection is closed")
@@ -116,7 +80,7 @@ func TCPConnHandle(con net.Conn, nodata bool) {
 	} else {
 		// Don't send any data, just the STDOUT
 		// Remote -> Client
-		chanToStdout := streamCopy(con, os.Stdout)
+		chanToStdout := stream.StreamCopy(con, os.Stdout)
 		select {
 		case <-chanToStdout:
 			color.Red("[!] Remote connection is closed")
@@ -124,49 +88,6 @@ func TCPConnHandle(con net.Conn, nodata bool) {
 			os.Exit(1)
 		}
 	}
-}
-
-// streamCopy is the sync between OS and stream
-// https://github.com/vfedoroff/go-netcat/blob/master/main.go
-func streamCopy(src io.Reader, dst io.Writer) <-chan int {
-
-	// Create 1024 byte transfer buffer
-	buf := make([]byte, 1024)
-	syncChannel := make(chan int)
-
-	go func() {
-		defer func() {
-			if con, ok := dst.(net.Conn); ok {
-				con.Close()
-				color.Red("[!] Connection from %v is closed\n", con.RemoteAddr())
-			}
-			syncChannel <- 0 // Notify that processing is finished
-		}()
-
-		for {
-
-			var nBytes int
-			var err error
-
-			// io.Reader.Read(buf) -> buffer
-			nBytes, err = src.Read(buf)
-			if err != nil {
-				if err != io.EOF {
-					color.Red("[!] Read error: %s\n", err)
-				}
-				break
-			}
-
-			// io.Writer.Write(buf)
-			_, err = dst.Write(buf[0:nBytes])
-			if err != nil {
-				color.Red("[!] Write error: %s\n", err)
-			}
-		}
-	}()
-
-	return syncChannel
-
 }
 
 // TLSClient begins the Client with TLS encryption
@@ -189,7 +110,7 @@ func TLSClient(protocol string, serverCert string, remoteAddr string, nodata boo
 	if program == "" {
 		TCPConnHandle(conn, nodata)
 	} else {
-		ExecProgram(conn, program)
+		execute.ExecProgram(conn, program)
 	}
 }
 
@@ -208,7 +129,7 @@ func Client(protocol string, RemoteServer string, RemotePort string, encrypted b
 		if program == "" {
 			TCPConnHandle(conn, nodata)
 		} else {
-			ExecProgram(conn, program)
+			execute.ExecProgram(conn, program)
 		}
 	} else {
 
@@ -271,7 +192,7 @@ func StartTLSServer(protocol string, serverKey string, serverCert string, listen
 		// Program string was empty
 		TCPConnHandle(conn, false)
 	} else {
-		ExecProgram(conn, program)
+		execute.ExecProgram(conn, program)
 	}
 }
 
@@ -300,7 +221,7 @@ func ListenServer(protocol string, server string, port string, encrypted bool, p
 				//Connection, nodata, listener
 				TCPConnHandle(conn, false)
 			} else {
-				ExecProgram(conn, program)
+				execute.ExecProgram(conn, program)
 			}
 		}
 	} else {
