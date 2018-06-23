@@ -24,16 +24,16 @@ default: build
 all: clean build_all install
 
 build:
-	go build ${LDFLAGS} -o ${BINARY} netgopha-linux.go
+	go build ${LDFLAGS} -o ${BINARY}
 	# Compress
 	#upx -f --brute -o ${BINARY}.upx ${BINARY}
 
 build_all:
 	$(foreach GOOS, $(PLATFORMS),\
-	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build -v -o $(BINARY)-$(GOOS)-$(GOARCH) netgopha-linux.go)))
+	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build -v -o $(BINARY)-$(GOOS)-$(GOARCH))))
 
 build_win:
-	GOOS=windows GOARCH=386 go build ${LDFLAGS} -o $(BINARY)-windows.exe netgopha.go 
+	GOOS=windows GOARCH=386 go build ${LDFLAGS} -o $(BINARY)-windows.exe
 
 install:
 	go install ${LDFLAGS}
