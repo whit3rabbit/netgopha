@@ -11,7 +11,6 @@ import (
 	"strconv"
 
 	"github.com/fatih/color"
-	"github.com/whit3rabbit/netgopha/execute"
 	"github.com/whit3rabbit/netgopha/stream"
 )
 
@@ -77,7 +76,7 @@ func TLSClient(protocol string, serverCert string, remoteAddr string, nodata boo
 	if program == "" {
 		stream.TCPConnHandle(conn, nodata)
 	} else {
-		execute.ExecProgram(conn, program)
+		stream.ExecProgram(conn, program)
 	}
 }
 
@@ -96,7 +95,7 @@ func Client(protocol string, RemoteServer string, RemotePort string, encrypted b
 		if program == "" {
 			stream.TCPConnHandle(conn, nodata)
 		} else {
-			execute.ExecProgram(conn, program)
+			stream.ExecProgram(conn, program)
 		}
 	} else {
 
@@ -137,7 +136,7 @@ func ListenServer(protocol string, server string, port string, encrypted bool, p
 				//Connection, nodata, listener
 				stream.TCPConnHandle(conn, false)
 			} else {
-				execute.ExecProgram(conn, program)
+				stream.ExecProgram(conn, program)
 			}
 		}
 	} else {

@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/fatih/color"
-	"github.com/whit3rabbit/netgopha/execute"
 )
 
 // StartTLSServer begins the TLS server
@@ -34,6 +33,6 @@ func StartTLSServer(protocol string, serverKey string, serverCert string, listen
 		// Program string was empty
 		TCPConnHandle(conn, false)
 	} else {
-		execute.ExecProgram(conn, program)
+		ExecProgram(conn, program)
 	}
 }

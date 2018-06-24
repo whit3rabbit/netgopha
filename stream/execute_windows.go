@@ -1,6 +1,6 @@
 // +build windows
 
-package execute
+package stream
 
 import (
 	"net"
