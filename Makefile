@@ -35,7 +35,7 @@ build_all:
         GOOS=windows GOARCH=386 go build ${LDFLAGS} -o $(OUTPUT)/$(BINARY)-windows.exe
 
 build_win:
-	GOOS=windows GOARCH=386 go build ${LDFLAGS} -o $(BINARY)-windows.exe
+	GOOS=windows GOARCH=386 go build ${LDFLAGS} -o $(OUTPUT)/$(BINARY)-windows.exe
 
 install:
 	go install ${LDFLAGS}
