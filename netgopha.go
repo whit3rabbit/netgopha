@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -58,38 +57,6 @@ FdbP1FZBpEK/FoH79kE2CWbm63UdzTDaRWM=
 -----END CERTIFICATE-----
 `
 
-// TCPConnHandle = TCP -> Stdout and Stdin -> TCP
-// https://github.com/vfedoroff/go-netcat/blob/master/main.go
-func TCPConnHandle(con net.Conn, nodata bool) {
-
-	if !nodata {
-		// Remote -> Client
-		chanToStdout := stream.StreamCopy(con, os.Stdout)
-		// Client -> Remote
-		chanToRemote := stream.StreamCopy(os.Stdin, con)
-		select {
-		case <-chanToStdout:
-			color.Red("[!] Remote connection is closed")
-			con.Close()
-			os.Exit(1)
-		case <-chanToRemote:
-			color.Red("[!] Local program is terminated")
-			con.Close()
-			os.Exit(1)
-		}
-	} else {
-		// Don't send any data, just the STDOUT
-		// Remote -> Client
-		chanToStdout := stream.StreamCopy(con, os.Stdout)
-		select {
-		case <-chanToStdout:
-			color.Red("[!] Remote connection is closed")
-			con.Close()
-			os.Exit(1)
-		}
-	}
-}
-
 // TLSClient begins the Client with TLS encryption
 func TLSClient(protocol string, serverCert string, remoteAddr string, nodata bool, program string) {
 
@@ -108,7 +75,7 @@ func TLSClient(protocol string, serverCert string, remoteAddr string, nodata boo
 	}
 	color.Blue("[+] TLS encrypted: Connected to %s", remoteAddr)
 	if program == "" {
-		TCPConnHandle(conn, nodata)
+		stream.TCPConnHandle(conn, nodata)
 	} else {
 		execute.ExecProgram(conn, program)
 	}
@@ -127,14 +94,14 @@ func Client(protocol string, RemoteServer string, RemotePort string, encrypted b
 		}
 		color.Blue("[+] Unecrypted: Connected to %s", remoteAddr)
 		if program == "" {
-			TCPConnHandle(conn, nodata)
+			stream.TCPConnHandle(conn, nodata)
 		} else {
 			execute.ExecProgram(conn, program)
 		}
 	} else {
 
 		// This checks if we are using a server.pem
-		NewServerCert := CheckCerts("cert.pem")
+		NewServerCert := stream.CheckCerts("cert.pem")
 		if NewServerCert != "" {
 			color.Blue("[+] Starting encrypted client connection with cert.pem")
 			TLSClient(protocol, NewServerCert, remoteAddr, nodata, program)
@@ -142,57 +109,6 @@ func Client(protocol string, RemoteServer string, RemotePort string, encrypted b
 			color.Blue("[+] Starting encrypted client connection with hardcoded certs")
 			TLSClient(protocol, serverCert, remoteAddr, nodata, program)
 		}
-	}
-}
-
-// CheckCerts attempts to read server.key and cert.pem for TLS
-// if those files exists. Then it returns the values for the
-// certs as a string.  If error it returns nothing as a string
-func CheckCerts(cert string) string {
-
-	// Check if file exists
-	if _, err := os.Stat(cert); !os.IsNotExist(err) {
-		color.Blue("[+] File found: %s", cert)
-		CertRead, err := ioutil.ReadFile(cert)
-		// Error return nothing
-		if err != nil {
-			color.Red("[!] Could not read %s. Using hardcoded values", cert)
-			return ""
-		}
-		// Sucessfully read cert file.  Return
-		return string(CertRead)
-	}
-	color.Red("[+] File not found: %s", cert)
-	return ""
-}
-
-// StartTLSServer begins the TLS server
-func StartTLSServer(protocol string, serverKey string, serverCert string, listenAddr string, program string) {
-
-	// TLS stuff (serverCert & serverKey)
-	cer, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
-	if err != nil {
-		log.Fatal(err)
-	}
-	config := &tls.Config{Certificates: []tls.Certificate{cer}}
-
-	// Start the encrypted listener
-	ln, err := tls.Listen(protocol, listenAddr, config)
-	if err != nil {
-		color.Red("[!] Encrypted listener unable to start: %s", err)
-		return
-	}
-	conn, err := ln.Accept()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Check if we need to execute a program
-	if program == "" {
-		// Program string was empty
-		TCPConnHandle(conn, false)
-	} else {
-		execute.ExecProgram(conn, program)
 	}
 }
 
@@ -219,7 +135,7 @@ func ListenServer(protocol string, server string, port string, encrypted bool, p
 			}
 			if program == "" {
 				//Connection, nodata, listener
-				TCPConnHandle(conn, false)
+				stream.TCPConnHandle(conn, false)
 			} else {
 				execute.ExecProgram(conn, program)
 			}
@@ -227,17 +143,17 @@ func ListenServer(protocol string, server string, port string, encrypted bool, p
 	} else {
 		for {
 			// Read files to check for user supplied server.key and cert.pem
-			NewServerKey := CheckCerts("server.key")
-			NewServerCert := CheckCerts("cert.pem")
+			NewServerKey := stream.CheckCerts("server.key")
+			NewServerCert := stream.CheckCerts("cert.pem")
 
 			// If return value is not empty then use that for TLS server
 			if NewServerKey != "" && NewServerCert != "" {
 				color.Blue("[+] Starting encrypted listener with cert files on %s", listenAddr)
-				StartTLSServer(protocol, NewServerKey, NewServerCert, listenAddr, program)
+				stream.StartTLSServer(protocol, NewServerKey, NewServerCert, listenAddr, program)
 			} else {
 				// Use the hardcoded certs
 				color.Blue("[+] Starting encrypted listener with hardcoded certs on %s", listenAddr)
-				StartTLSServer(protocol, serverKey, serverCert, listenAddr, program)
+				stream.StartTLSServer(protocol, serverKey, serverCert, listenAddr, program)
 			}
 		}
 	}
