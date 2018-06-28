@@ -12,7 +12,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/whit3rabbit/netgopha/stream"
-        "github.com/whit3rabbit/netgopha/aes"
 )
 
 // TLSClient begins the Client with TLS encryption
@@ -190,7 +189,7 @@ func main() {
 
 	// If no arguments then display help
 	if flag.NFlag() == 0 && flag.NArg() == 0 {
-		fmt.Println("netgopha [-l] [-e] [-p listen port ] [-s listen ip address] [ip/hostname] [port]")
+		fmt.Println("netgopha [-l] [-e] [-p listen port ] [-e aes password] [-s listen ip address] [ip/hostname] [port]")
 		flag.Usage()
 		os.Exit(1)
 	}
