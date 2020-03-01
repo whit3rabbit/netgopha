@@ -29,7 +29,7 @@ Usage of ./netgopha:
 
 ## How to build
 
-Must have Go installed.  Git clone this repistory then:
+Must have Go installed.  Git clone this repository then:
 
 ```
 go build
