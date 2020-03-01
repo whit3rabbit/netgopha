@@ -32,12 +32,12 @@ Usage of ./netgopha:
 Must have Go installed.  Git clone this repistory then:
 
 ```
-make
+go build
 ```
 
-You can also build manually:
+You could also try with make:
 ```
-go build netgopha.go
+make
 ```
 
 ## TLS Encryption support
