@@ -2,10 +2,8 @@ package stream
 
 import (
 	"crypto/tls"
-	"log"
-	"runtime"
-
 	"github.com/fatih/color"
+	"log"
 )
 
 // StartTLSServer begins the TLS server
@@ -34,10 +32,6 @@ func StartTLSServer(protocol string, serverKey string, serverCert string, listen
 		// Program string was empty
 		TCPConnHandle(conn, false)
 	} else {
-		if runtime.GOOS == "windows" {
-			ExecProgramWindows(conn, program)
-		} else {
-			ExecProgramLinux(conn, program)
-		}
+			ExecProgram(conn, program)
 	}
 }
