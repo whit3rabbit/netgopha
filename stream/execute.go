@@ -13,7 +13,7 @@ import (
 
 // ExecProgram for TCP Listener...client sends program
 // it wants to execute on listener.  Listener waits for
-func ExecProgram(conn net.Conn, program string) {
+func ExecProgramLinux(conn net.Conn, program string) {
 
 	// Unix style systems
 	cmd := exec.Command(program)

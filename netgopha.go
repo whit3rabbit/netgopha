@@ -8,10 +8,11 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
+	"netgopha/stream"
 
 	"github.com/fatih/color"
-	"github.com/whit3rabbit/netgopha/stream"
 )
 
 // TLSClient begins the Client with TLS encryption
@@ -34,7 +35,11 @@ func TLSClient(protocol string, serverCert string, remoteAddr string, nodata boo
 	if program == "" {
 		stream.TCPConnHandle(conn, nodata)
 	} else {
-		stream.ExecProgram(conn, program)
+		if runtime.GOOS == "windows" {
+			stream.ExecProgramWindows(conn, program)
+		} else {
+			stream.ExecProgramLinux(conn, program)
+		}
 	}
 }
 
@@ -53,7 +58,11 @@ func Client(protocol string, RemoteServer string, RemotePort string, encrypted b
 		if program == "" {
 			stream.TCPConnHandle(conn, nodata)
 		} else {
-			stream.ExecProgram(conn, program)
+			if runtime.GOOS == "windows" {
+				stream.ExecProgramWindows(conn, program)
+			} else {
+				stream.ExecProgramLinux(conn, program)
+			}
 		}
 	} else {
 
@@ -94,7 +103,11 @@ func ListenServer(protocol string, server string, port string, encrypted bool, p
 				//Connection, nodata, listener
 				stream.TCPConnHandle(conn, false)
 			} else {
-				stream.ExecProgram(conn, program)
+				if runtime.GOOS == "windows" {
+					stream.ExecProgramWindows(conn, program)
+				} else {
+					stream.ExecProgramLinux(conn, program)
+				}
 			}
 		}
 	} else {

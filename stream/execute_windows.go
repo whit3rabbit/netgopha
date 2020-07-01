@@ -10,7 +10,7 @@ import (
 
 // ExecProgram for TCP Listener...client sends program
 // it wants to execute on listener.  Listener waits for
-func ExecProgram(conn net.Conn, program string) {
+func ExecProgramWindows(conn net.Conn, program string) {
 
 	// Windows command execute
 	cmd := exec.Command(program)
