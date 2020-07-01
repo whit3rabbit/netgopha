@@ -24,3 +24,5 @@ netgopha
 
 # Output files
 output/*
+
+.idea/
